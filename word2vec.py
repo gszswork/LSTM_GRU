@@ -1,12 +1,24 @@
 from gensim.test.utils import common_texts
 from gensim.models import Word2Vec
 import gensim.downloader
-# download the word2vec model with common_texts
-
-# Load training data as train_data， write into train_file, test_file and label_file
 
 import jsonlines
 
+
+import pickle
+dirname = 'data/'
+
+
+def save_obj(obj, name ):
+    with open(dirname+ name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
+def load_obj(name ):
+    with open( dirname + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
+
+########################### load data from project-data path#####################################
 path = 'project-data/'
 train_data_path = 'train.data.jsonl'
 dev_data_path = 'dev.data.jsonl'
@@ -17,10 +29,6 @@ with jsonlines.open(path + train_data_path) as reader:
     for obj in reader:
         train_data.append(obj)
 print('length of traininig data:', len(train_data))
-with open('my_data/train_file.txt', 'w') as o1:
-    for tree in train_data:
-        root_id = tree[0]['id']
-        o1.write(f'{root_id}\n')
 
 # load the development data as dev_data(used as test_data in RvNN)
 dev_data = []
@@ -29,21 +37,11 @@ with jsonlines.open(path + dev_data_path) as reader1:
         dev_data.append(obj)
 print('length of devolop data: ', len(dev_data))
 
-with open('my_data/dev_file.txt', 'w') as o2:
-    for tree in dev_data:
-        root_id = tree[0]['id']
-        o2.write(f'{root_id}\n')
-
 test_data = []
 with jsonlines.open(path + test_data_path) as reader2:
     for obj in reader2:
         test_data.append(obj)
 print('length of test data: ', len(test_data))
-
-with open('my_data/test_file.txt', 'w') as o2:
-    for tree in test_data:
-        root_id = tree[0]['id']
-        o2.write(f'{root_id}\n')
 
 import json
 
@@ -53,12 +51,6 @@ with open(path + train_label_path) as f1, open(path + dev_label_path) as f2:
     train_label = json.load(f1)
     dev_label = json.load(f2)
 
-print('label of train and dev: ', len(train_label), len(dev_label))
-with open('my_data/label_file.txt', 'w') as oo:
-    for key, value in train_label.items():
-        oo.write(f'{key} {value}\n')
-    for key, value in dev_label.items():
-        oo.write(f'{key} {value}\n')
 
 
 # Sort the three dataset in time_stamp order
@@ -73,7 +65,7 @@ def time_stamp(dic):
     h = time[11:13]
     m = time[14:16]
     s = time[17:19]
-    return month_list.index(month) * 86400 * 30 + int(day) * 86400 + int(h) * 3600 + int(m) * 60 + int(s) * 1
+    return month_list.index(month)*86400*30 + int(day)*86400 + int(h)*3600 + int(m)*60 + int(s)*1
 
 
 for idx in range(len(train_data)):
@@ -85,10 +77,29 @@ for idx in range(len(test_data)):
 for idx in range(len(dev_data)):
     dev_data[idx] = sorted(dev_data[idx], key=lambda tree_node: time_stamp(tree_node))
 
+tl = []
+for idx in range(len(train_data)):
+    Id = train_data[idx][0]['id_str']
+    l = train_label[Id]
+    if l == 'rumour':
+        tl.append([1.0, 0.0])
+    if l == 'non-rumour':
+        tl.append([0.0, 1.0])
+
+dl = []
+for idx in range(len(dev_data)):
+    Id = dev_data[idx][0]['id_str']
+    l = dev_label[Id]
+    if l == 'rumour':
+        dl.append(1)
+    if l == 'non-rumour':
+        dl.append(0)
+
+save_obj(tl, 'train_label')
+save_obj(dl, 'dev_label')
+
 
 # Get All texts and process them into Text and Dev
-
-
 Train_txt = []
 for tree in train_data:
     sub_text = []
@@ -228,11 +239,8 @@ new_Text, word_dict, sentences = preprocess_text(Train_txt, Dev_txt, Test_txt)
 print('The corpus size: ', len(word_dict))
 print(new_Text[0][0][0][0])
 
-
-model = Word2Vec(sentences=sentences, vector_size=25, window=5, min_count=1, workers=4)
-
 train_set, dev_set, test_set = new_Text[0], new_Text[1], new_Text[2]
-
+model = Word2Vec(sentences=sentences, vector_size=25, min_count=1, workers=4)
 for idx in range(len(train_set)):
     # tree: train_set[idx]
     for sen_idx in range(len(train_set[idx])):
@@ -263,17 +271,6 @@ for idx in range(len(test_set)):
             word_vec = model.wv[test_set[idx][sen_idx][word_idx]]
             test_set[idx][sen_idx][word_idx] = word_vec
 
-import pickle
-dirname = 'data/'
-def save_obj(obj, name ):
-    with open(dirname+ name + '.pkl', 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
-def load_obj(name ):
-    with open( dirname + name + '.pkl', 'rb') as f:
-        return pickle.load(f)
-
-
 save_obj(train_set, 'train_set')
-save_obj(dev_set,   'dev_test')
+save_obj(dev_set,   'dev_set')
 save_obj(test_set,  'test_set')
