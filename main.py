@@ -4,14 +4,14 @@ import pickle
 from tqdm import tqdm
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
 import numpy as np
-device = 'cpu'
+device = 'cuda'
 
 word_vector_dim = 25
 LSTM_dim = 128
 GRU_dim = 32
 classes = 2
 epochs = 100
-lr = 0.005
+lr = 0.0025
 
 
 dirname = 'data/'
@@ -39,7 +39,7 @@ model_optimizer = torch.optim.SGD(
     momentum=0.9,
     lr=lr
 )
-
+model_optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
 loss_func = nn.MSELoss(reduction='sum')
 
 # train_data = [tree1, tree1, tree1]
@@ -54,9 +54,9 @@ for iteration in range(epochs):
         if idx == 3126:
             continue    # The 3126th dataset is not complete
         #hidden = (tuple([each.data for each in hidden[0]]), [each.data for each in hidden[1]])
-        LSTM_hidden = tuple([e.data for e in LSTM_hidden])
-        GRU_hidden = GRU_hidden.data                                #
-        pred, LSTM_hidden, GRU_hidden = model(train_data[idx], LSTM_hidden, GRU_hidden)
+        #LSTM_hidden = tuple([e.data for e in LSTM_hidden])
+        #GRU_hidden = GRU_hidden.data                                #
+        pred = model(train_data[idx])
         # print(pred.shape)
         target = torch.FloatTensor(train_label[idx]).to(device)
         loss = loss_func(pred, target)
@@ -70,7 +70,7 @@ for iteration in range(epochs):
     with torch.no_grad():
         pred_list = []
         for idx in range(len(dev_data)):
-            pred, _, _ = model(dev_data[idx], LSTM_hidden, GRU_hidden)
+            pred = model(dev_data[idx])
             pred = pred.to('cpu').numpy()
             if pred[0] > pred[1]:
                 new_pred = 1

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-device = 'cpu'
+device = 'cuda'
 
 
 class LSTM_GRU(nn.Module):
@@ -24,9 +24,10 @@ class LSTM_GRU(nn.Module):
         GRU_hidden = torch.zeros(size=(1, 1, self.GRU_dim))
         return LSTM_hidden, GRU_hidden
 
-    def forward(self, input_tree, LSTM_hidden, GRU_hidden):
+    def forward(self, input_tree):
         output_list = []  # Each treee keeps a output_list to hold all sentence outputs.
-
+        # Each time forward a new tree, so the two hidden state must be NEW
+        LSTM_hidden, GRU_hidden = self.init_hidden()
         ############################### sentence LSTM block ####################################################
         LSTM_hidden = (LSTM_hidden[0].to(device), LSTM_hidden[1].to(device))
         for sentence in input_tree:
@@ -49,7 +50,7 @@ class LSTM_GRU(nn.Module):
         FC_output = self.FC(GRU_output[-1])  # [1, GRU_hidden_dim]
 
         res = self.solfmax(FC_output)
-        return res.squeeze(dim=0), LSTM_hidden, GRU_hidden
+        return res.squeeze(dim=0)
 
 
 # The input format of LSTM_GRU:
